@@ -1,0 +1,762 @@
+<title>แบบจำลองการเติบโตของ Solow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=STIX+Two+Text:ital,wght@0,400;0,600;1,400;1,600&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Layout: one reading column. Explanation, then simulator (controls beside chart), results, AI scenario.
+     Pink and blue theme: blue for output Y, pink for investment sY, violet for depreciation δK, deep blue ink. */
+  --bg:#fff3f8; --surface:#ffffff; --ink:#14306b; --ink-2:#5b6a95; --rule:#ecd3e2; --soft:#fbe3ef;
+  --y:#1f66d6; --inv:#d6307f; --dep:#7440cf; --good:#0f7a6a;
+  --btn:#c42a6d; --on-btn:#ffffff;
+  --font:'IBM Plex Sans Thai','Noto Sans Thai','Sarabun',system-ui,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+  --math:'STIX Two Text','Times New Roman',serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#16122a; --surface:#1f1a38; --ink:#eef0ff; --ink-2:#b4b0d9; --rule:#3a3160; --soft:#2a2350;
+    --y:#74aaff; --inv:#ff7ab9; --dep:#b99cff; --good:#5fe0b8; --btn:#ff7ab9; --on-btn:#1a1030;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#16122a; --surface:#1f1a38; --ink:#eef0ff; --ink-2:#b4b0d9; --rule:#3a3160; --soft:#2a2350;
+  --y:#74aaff; --inv:#ff7ab9; --dep:#b99cff; --good:#5fe0b8; --btn:#ff7ab9; --on-btn:#1a1030;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.65}
+.wrap{max-width:1040px;margin:0 auto;padding-inline:clamp(16px,4vw,32px);padding-block:clamp(20px,4vw,40px);display:flex;flex-direction:column;gap:clamp(36px,6vw,60px)}
+h1,h2,h3{margin:0;line-height:1.3;text-wrap:balance}
+h2{font-size:1.4rem;font-weight:700;padding-bottom:.55rem;border-bottom:1px solid var(--rule)}
+h3{font-size:1.05rem;font-weight:600}
+p{margin:0}
+b,strong{font-weight:600}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.m{font-family:var(--math);font-style:italic;font-size:1.08em}
+.rad{font-family:var(--math)}
+.rad-in{border-top:1.5px solid currentColor;padding:0 2px;margin-left:-1px;font-style:italic}
+:focus-visible{outline:2px solid var(--y);outline-offset:2px}
+
+/* header */
+.top{border-bottom:3px solid;border-image:linear-gradient(90deg,var(--inv),var(--y)) 1;padding-bottom:22px;display:flex;flex-direction:column;gap:14px}
+.who{display:flex;flex-wrap:wrap;gap:6px 36px}
+.who-i{display:flex;flex-direction:column;min-width:0}
+.lab{font-size:.78rem;letter-spacing:.04em;color:var(--ink-2)}
+.who-v{font-size:1.1rem;font-weight:600;overflow-wrap:anywhere;color:var(--ink)}
+.who-v.todo{color:var(--ink-2);font-weight:400;font-style:italic}
+h1{font-size:clamp(1.75rem,5vw,2.6rem);font-weight:700}
+.lede{color:var(--ink-2);max-width:60ch}
+
+/* explanation */
+.two{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:28px;align-items:start;margin-top:22px}
+.prose{display:flex;flex-direction:column;gap:12px;max-width:62ch}
+.prose ul{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:8px}
+.tablewrap{overflow-x:auto;min-width:0}
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--rule);vertical-align:middle}
+th{font-weight:600;border-bottom:2px solid var(--ink);white-space:nowrap}
+td.eqn{font-family:var(--math);font-size:1.2rem;white-space:nowrap}
+.trio{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-top:14px}
+.var{border:1px solid var(--rule);background:var(--surface);border-radius:6px;padding:16px 18px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.var .sym{font-family:var(--math);font-style:italic;font-size:2rem;line-height:1}
+.var.vs .sym{color:var(--inv)} .var.vd .sym{color:var(--dep)} .var.va .sym{color:var(--y)}
+.var .nm{font-weight:600}
+.var .sc{font-family:var(--math);font-size:1.05rem;color:var(--ink-2);margin-top:2px}
+.var p{font-size:.95rem}
+.rule-note{margin-top:16px;padding:12px 16px;background:var(--soft);border-radius:6px;max-width:80ch}
+
+/* simulator */
+.sim{display:grid;grid-template-columns:300px minmax(0,1fr);gap:24px;align-items:start;margin-top:22px}
+.panel{background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:18px}
+.controls{display:flex;flex-direction:column;gap:20px}
+.ctl{display:flex;flex-direction:column;gap:4px}
+.ctl-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.ctl-h label{font-weight:500}
+.ctl-h output{font-size:1.05rem;font-weight:600}
+.ctl-f{display:flex;justify-content:space-between;font-size:.75rem;color:var(--ink-2);font-family:var(--mono)}
+.ctl-n{font-size:.82rem;color:var(--ink-2);min-height:1.3em}
+input[type=range]{width:100%;margin:6px 0 0;accent-color:var(--y);height:28px;cursor:pointer}
+#sRow input{accent-color:var(--inv)} #dRow input{accent-color:var(--dep)}
+.btn{font:inherit;font-weight:600;border-radius:6px;padding:10px 16px;cursor:pointer;border:1.5px solid var(--btn);background:var(--btn);color:var(--on-btn);min-height:44px}
+.btn.alt{background:transparent;color:var(--ink)}
+.btn:hover{filter:brightness(1.12)}
+.btn.alt:hover{background:var(--soft);filter:none}
+.initnote{font-size:.82rem;color:var(--ink-2)}
+.chartpanel{display:flex;flex-direction:column;gap:12px;min-width:0}
+.legend{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px 18px;font-size:.88rem}
+.legend li{display:flex;align-items:center;gap:7px}
+.sw{display:inline-block;width:22px;height:0;border-top:3px solid;border-radius:2px}
+.sw-y{border-color:var(--y)} .sw-i{border-color:var(--inv)} .sw-d{border-color:var(--dep)}
+.sw-up,.sw-dn{height:12px;width:16px;border:0;border-radius:2px}
+.sw-up{background:var(--inv);opacity:.3} .sw-dn{background:var(--dep);opacity:.3}
+.sw-ghost{border-top:2px dashed var(--ink-2)}
+#chart{width:100%;touch-action:pan-y;cursor:crosshair;position:relative}
+#chart svg{display:block;max-width:100%}
+svg text{font-family:var(--font)}
+.g-grid{stroke:var(--rule);stroke-width:1;fill:none}
+.g-axis{stroke:var(--ink-2);stroke-width:1.25;fill:none}
+.g-tick{fill:var(--ink-2);font-size:11px;font-family:var(--mono)}
+.g-title{fill:var(--ink-2);font-size:12px}
+.c-y,.c-i,.c-d,.c-gy,.c-gi{fill:none;stroke-linecap:round;stroke-linejoin:round}
+.c-y{stroke:var(--y);stroke-width:3} .c-i{stroke:var(--inv);stroke-width:3} .c-d{stroke:var(--dep);stroke-width:3}
+.c-gy{stroke:var(--y);stroke-width:2;stroke-dasharray:6 5;opacity:.55}
+.c-gi{stroke:var(--inv);stroke-width:2;stroke-dasharray:6 5;opacity:.55}
+.a-up{fill:var(--inv);fill-opacity:.13;stroke:none} .a-dn{fill:var(--dep);fill-opacity:.11;stroke:none}
+.drop{stroke:var(--ink);stroke-width:1;stroke-dasharray:4 4;opacity:.65;fill:none}
+.pt{fill:var(--ink);stroke:var(--surface);stroke-width:2.5}
+.pt-g{fill:var(--surface);stroke:var(--ink);stroke-width:2}
+.lbl{fill:var(--ink);font-size:12px;font-weight:600;paint-order:stroke;stroke:var(--surface);stroke-width:4px;stroke-linejoin:round}
+.lbl-s{fill:var(--ink-2);font-size:11px;font-weight:500;paint-order:stroke;stroke:var(--surface);stroke-width:4px;stroke-linejoin:round}
+.guide{stroke:var(--ink-2);stroke-width:1;fill:none}
+.gd-y{fill:var(--y);stroke:var(--surface);stroke-width:1.5} .gd-i{fill:var(--inv);stroke:var(--surface);stroke-width:1.5} .gd-d{fill:var(--dep);stroke:var(--surface);stroke-width:1.5}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between}
+.readout{font-family:var(--mono);font-size:.82rem;color:var(--ink-2);min-height:2.6em;overflow-wrap:anywhere}
+
+/* results */
+.results{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:24px}
+.tile{background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:16px 18px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.tile .k{font-weight:600;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.tile .k small{font-weight:400;color:var(--ink-2);font-size:.82rem}
+.tile .v{font-family:var(--mono);font-weight:600;font-size:clamp(1.45rem,3.6vw,1.9rem);font-variant-numeric:tabular-nums;overflow-wrap:anywhere;line-height:1.25}
+.tile .cap{font-size:.82rem;color:var(--ink-2);font-family:var(--math)}
+.chip{align-self:flex-start;font:500 .8rem var(--mono);padding:2px 9px;border-radius:99px;background:var(--soft);color:var(--good);margin-top:4px}
+.calc{margin-top:16px;background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:14px 18px;font-family:var(--mono);font-size:.88rem;line-height:1.9;overflow-x:auto;white-space:nowrap}
+.calc div span{color:var(--ink-2)}
+
+/* AI scenario */
+.ai{margin-top:22px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:28px;align-items:start}
+.ai-l{display:flex;flex-direction:column;gap:14px;align-items:flex-start}
+.ai-l .btn{width:100%;max-width:360px}
+.ai-r{min-width:0;display:flex;flex-direction:column;gap:16px}
+.idle{border:1px dashed var(--rule);border-radius:8px;padding:18px;color:var(--ink-2)}
+.big{font-size:1.2rem;font-weight:600;line-height:1.5}
+.big .up{color:var(--good)}
+.bars{display:flex;flex-direction:column;gap:8px}
+.bar{display:flex;align-items:center;gap:10px}
+.bar-l{width:5.5em;font-size:.85rem;color:var(--ink-2);flex:none}
+.bar-t{flex:1;background:var(--soft);border-radius:4px;height:30px;min-width:0}
+.bar-f{height:100%;border-radius:4px;display:flex;align-items:center;padding-inline:10px;font:600 .82rem var(--mono);color:#fff;min-width:max-content;white-space:nowrap}
+.bar-f.b0{background:var(--ink-2)} .bar-f.b1{background:var(--y)}
+:root[data-theme="dark"] .bar-f{color:#0f141d}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .bar-f{color:#0f141d}}
+td.r,th.r{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.fine{font-size:.9rem;color:var(--ink-2);max-width:68ch}
+footer{font-size:.82rem;color:var(--ink-2);border-top:1px solid var(--rule);padding-top:18px}
+footer .who{margin-bottom:10px}
+
+/* compare + long-run growth */
+.sumbox{margin-top:18px;padding:14px 18px;background:var(--soft);border-radius:6px;line-height:1.9;max-width:80ch}
+.cmpbars{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;margin-top:22px}
+.cb{display:flex;flex-direction:column;gap:8px;min-width:0}
+.cb-h{font-weight:600}
+.bar-f.bA{background:var(--y)} .bar-f.bS{background:var(--inv)}
+.sw-base{border-top:2px dashed var(--ink-2)}
+.sw-s{border-color:var(--inv)} .sw-a{border-color:var(--y)} .sw-g{border-color:var(--good)}
+#gchart{width:100%}
+#gchart svg{display:block;max-width:100%}
+.l-base,.l-s,.l-a,.l-g{fill:none;stroke-linecap:round;stroke-linejoin:round}
+.l-base{stroke:var(--ink-2);stroke-width:2;stroke-dasharray:6 5}
+.l-s{stroke:var(--inv);stroke-width:3} .l-a{stroke:var(--y);stroke-width:3} .l-g{stroke:var(--good);stroke-width:3.5}
+.e-base{fill:var(--ink-2)} .e-s{fill:var(--inv)} .e-a{fill:var(--y)} .e-g{fill:var(--good)}
+.answer{font-size:1.15rem;line-height:1.6}
+
+@media (max-width:860px){
+  .two,.sim,.ai{grid-template-columns:minmax(0,1fr)}
+}
+@media (prefers-reduced-motion: reduce){*{scroll-behavior:auto!important}}
+</style>
+
+<div class="wrap">
+
+<header class="top">
+  <h1>แบบจำลองการเติบโตของ Solow</h1>
+  <p class="lede">ปรับอัตราการออม อัตราค่าเสื่อม และระดับเทคโนโลยี แล้วดูว่าทุนของเศรษฐกิจไปหยุดที่จุดไหน และผลผลิตตอนนั้นเป็นเท่าไร</p>
+</header>
+
+<section id="explain">
+  <h2>แบบจำลองนี้บอกอะไร</h2>
+  <div class="two">
+    <div class="prose">
+      <p>แบบจำลองของ Solow เขียนผลผลิตเป็น <span class="m">Y = f(K, eL, A)</span> คือผลผลิตมาจากทุน <span class="m">K</span> แรงงานที่มีประสิทธิภาพ <span class="m">eL</span> และเทคโนโลยี <span class="m">A</span> ในหน้านี้วัดทุนเป็น<b>ทุนต่อแรงงานที่มีประสิทธิภาพ</b> (capital per effective worker) จึงเหลือสมการเดียว</p>
+      <p class="eqn-inline" style="font-family:var(--math);font-size:1.5rem"><span class="m">Y</span> = <span class="m">A</span><span class="rad">√<span class="rad-in">K</span></span></p>
+      <h3>Y = A√K หมายถึงอะไร</h3>
+      <ul>
+        <li><b>A</b> คือระดับเทคโนโลยี ความรู้ และนวัตกรรม ค่า A สูงขึ้น ทุนหนึ่งหน่วยผลิตของได้มากขึ้น</li>
+        <li><b>√K</b> แปลว่าทุนที่เพิ่มขึ้นให้ผลผลิตเพิ่มน้อยลงเรื่อย ๆ (ผลตอบแทนต่อทุนลดลง) เมื่อ A = 2.6 ทุนจาก 100 เป็น 101 เพิ่มผลผลิตประมาณ 0.130 แต่ทุนจาก 1,500 เป็น 1,501 เพิ่มได้ประมาณ 0.034</li>
+        <li>ผลผลิตส่วน <span class="m">s</span> ถูกออมและลงทุน (<span class="m">I = sY</span>) ที่เหลือ <span class="m">(1 − s)Y</span> คือการบริโภค <span class="m">C</span></li>
+      </ul>
+    </div>
+    <div class="tablewrap">
+      <table class="eq">
+        <thead><tr><th>รายการ</th><th>สมการ</th></tr></thead>
+        <tbody>
+          <tr><td>ผลผลิต</td><td class="eqn"><i>Y</i> = <i>A</i><span class="rad">√<span class="rad-in">K</span></span></td></tr>
+          <tr><td>การลงทุน</td><td class="eqn"><i>I</i> = <i>sY</i></td></tr>
+          <tr><td>ค่าเสื่อม</td><td class="eqn"><i>D</i> = <i>δK</i></td></tr>
+          <tr><td>ทุนเปลี่ยนไปในแต่ละช่วง</td><td class="eqn">Δ<i>K</i> = <i>sY</i> − <i>δK</i></td></tr>
+          <tr><td>สภาวะคงตัว (Δ<i>K</i> = 0)</td><td class="eqn"><i>K</i>* = (<i>sA</i>/<i>δ</i>)<sup>2</sup></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <h3 style="margin-top:30px">s, δ และ A ทำให้ทุนเพิ่มหรือลดอย่างไร</h3>
+  <div class="trio">
+    <div class="var vs">
+      <span class="sym">s</span>
+      <span class="nm">อัตราการออม (saving rate)</span>
+      <p>สัดส่วนของผลผลิตที่ถูกนำไปลงทุน s สูงขึ้น เส้นการลงทุน <i>sY</i> ยกขึ้น ทุนเพิ่มต่อช่วงมากขึ้น และจุดสภาวะคงตัวขยับไปทางขวา</p>
+      <span class="sc"><i>K</i>* ∝ <i>s</i><sup>2</sup> &nbsp;·&nbsp; <i>Y</i>* ∝ <i>s</i></span>
+    </div>
+    <div class="var vd">
+      <span class="sym">δ</span>
+      <span class="nm">อัตราค่าเสื่อม (depreciation)</span>
+      <p>สัดส่วนของทุนที่สึกหรอไปในแต่ละช่วง δ สูงขึ้น เส้นค่าเสื่อม <i>δK</i> ชันขึ้น ทุนหายไปมากขึ้น และจุดสภาวะคงตัวขยับไปทางซ้าย</p>
+      <span class="sc"><i>K</i>* ∝ 1/<i>δ</i><sup>2</sup> &nbsp;·&nbsp; <i>Y</i>* ∝ 1/<i>δ</i></span>
+    </div>
+    <div class="var va">
+      <span class="sym">A</span>
+      <span class="nm">ระดับเทคโนโลยี ความรู้ และนวัตกรรม</span>
+      <p>A สูงขึ้น ทั้งเส้นผลผลิต <i>Y</i> และเส้นการลงทุน <i>sY</i> ยกขึ้นพร้อมกัน ทุนหนึ่งหน่วยผลิตและออมได้มากขึ้น จุดสภาวะคงตัวขยับไปทางขวาและสูงขึ้น</p>
+      <span class="sc"><i>K</i>* ∝ <i>A</i><sup>2</sup> &nbsp;·&nbsp; <i>Y</i>* ∝ <i>A</i><sup>2</sup></span>
+    </div>
+  </div>
+  <p class="rule-note">ถ้า <i>sY</i> มากกว่า <i>δK</i> ทุนเพิ่ม ถ้า <i>sY</i> น้อยกว่า <i>δK</i> ทุนลด ทุนหยุดเปลี่ยนที่จุดที่สองเส้นตัดกัน เรียกว่า steady state (สภาวะคงตัว) ซึ่งการลงทุนเท่ากับค่าเสื่อมพอดี</p>
+</section>
+
+<section id="sim">
+  <h2>ทดลองปรับค่า</h2>
+  <div class="sim">
+    <div class="panel controls">
+      <div class="ctl" id="sRow">
+        <div class="ctl-h"><label for="s"><span class="m">s</span> อัตราการออม</label><output id="sOut" for="s" class="num"></output></div>
+        <input type="range" id="s" min="0.05" max="0.6" step="0.01" value="0.3">
+        <div class="ctl-f"><span>0.050</span><span>0.600</span></div>
+      </div>
+      <div class="ctl" id="dRow">
+        <div class="ctl-h"><label for="d"><span class="m">δ</span> อัตราค่าเสื่อม</label><output id="dOut" for="d" class="num"></output></div>
+        <input type="range" id="d" min="0.005" max="0.1" step="0.001" value="0.02">
+        <div class="ctl-f"><span>0.005</span><span>0.100</span></div>
+      </div>
+      <div class="ctl" id="aRow">
+        <div class="ctl-h"><label for="A"><span class="m">A</span> ระดับเทคโนโลยี</label><output id="aOut" for="A" class="num"></output></div>
+        <input type="range" id="A" min="1" max="6" step="0.1" value="2.6">
+        <div class="ctl-f"><span>1.000</span><span>6.000</span></div>
+        <div class="ctl-n" id="aNote"></div>
+      </div>
+      <button type="button" class="btn alt" id="resetBtn">คืนค่าตั้งต้น</button>
+      <p class="initnote" id="initNote"></p>
+    </div>
+
+    <div class="panel chartpanel">
+      <ul class="legend">
+        <li><i class="sw sw-y"></i>ผลผลิต <i>Y</i></li>
+        <li><i class="sw sw-i"></i>การลงทุน <i>sY</i></li>
+        <li><i class="sw sw-d"></i>ค่าเสื่อม <i>δK</i></li>
+        <li><i class="sw sw-up"></i>ทุนเพิ่ม (<i>sY</i> &gt; <i>δK</i>)</li>
+        <li><i class="sw sw-dn"></i>ทุนลด (<i>sY</i> &lt; <i>δK</i>)</li>
+        <li id="ghostKey" hidden><i class="sw sw-ghost"></i>ก่อนมี AI</li>
+      </ul>
+      <div id="chart"></div>
+      <div class="toolbar">
+        <button type="button" class="btn alt" id="playBtn">เล่นการปรับตัวของทุน</button>
+        <p class="readout" id="readout" style="flex:1;min-width:200px"></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="results" aria-live="polite">
+    <div class="tile">
+      <div class="k"><span><i>K</i>*</span><small>ทุนที่สภาวะคงตัว</small></div>
+      <div class="v" id="vK"></div>
+      <div class="cap">(<i>sA</i>/<i>δ</i>)<sup>2</sup></div>
+      <span class="chip" id="cK" hidden></span>
+    </div>
+    <div class="tile">
+      <div class="k"><span><i>Y</i>*</span><small>ผลผลิตที่สภาวะคงตัว</small></div>
+      <div class="v" id="vY"></div>
+      <div class="cap"><i>A</i>√<i>K</i>* = <i>sA</i><sup>2</sup>/<i>δ</i></div>
+      <span class="chip" id="cY" hidden></span>
+    </div>
+    <div class="tile">
+      <div class="k"><span><i>C</i>*</span><small>การบริโภคที่สภาวะคงตัว</small></div>
+      <div class="v" id="vC"></div>
+      <div class="cap">(1 − <i>s</i>)<i>Y</i>*</div>
+      <span class="chip" id="cC" hidden></span>
+    </div>
+  </div>
+  <div class="calc" id="calc"></div>
+</section>
+
+<section id="ai">
+  <h2>สถานการณ์เศรษฐกิจดิจิทัล</h2>
+  <div class="ai">
+    <div class="ai-l">
+      <p>สมมติว่าประเทศไทยนำ AI มาใช้ทั้งระบบเศรษฐกิจ ทำให้ระดับเทคโนโลยี <span class="m">A</span> เพิ่มขึ้น 20% ส่วนอัตราการออมและอัตราค่าเสื่อมเท่าเดิม กดปุ่มเพื่อดูว่าผลผลิตที่สภาวะคงตัวเปลี่ยนไปเท่าไร กราฟด้านบนจะแสดงเส้นเดิมเป็นเส้นประเทียบกับเส้นใหม่</p>
+      <button type="button" class="btn" id="aiBtn" aria-pressed="false">จำลอง: ไทยนำ AI มาใช้ (A เพิ่ม 20%)</button>
+      <p class="fine" id="aiLink" hidden><a href="#sim" style="color:var(--y)">ดูการเปลี่ยนแปลงในกราฟ</a> หรือกด “เล่นการปรับตัวของทุน” เพื่อดูทุนเคลื่อนจากจุดเดิมไปจุดใหม่</p>
+    </div>
+    <div class="ai-r">
+      <div class="idle" id="aiIdle">ยังไม่ได้จำลอง ตอนนี้ <span class="m">Y</span>* = <b class="num" id="aiIdleY"></b> กดปุ่มทางซ้ายเพื่อเพิ่ม <span class="m">A</span> ขึ้น 20% แล้วดูว่า <span class="m">Y</span>* เปลี่ยนไปเท่าไร</div>
+      <div id="aiDone" hidden>
+        <p class="big" id="aiBig"></p>
+        <div class="bars" style="margin-top:12px">
+          <div class="bar"><span class="bar-l">ก่อนมี AI</span><div class="bar-t"><div class="bar-f b0" id="barB"></div></div></div>
+          <div class="bar"><span class="bar-l">หลังมี AI</span><div class="bar-t"><div class="bar-f b1" id="barA"></div></div></div>
+        </div>
+        <div class="tablewrap" style="margin-top:14px">
+          <table>
+            <thead><tr><th>ค่า</th><th class="r">ก่อน</th><th class="r">หลัง</th><th class="r">เปลี่ยนไป</th><th class="r">%</th></tr></thead>
+            <tbody id="aiRows"></tbody>
+          </table>
+        </div>
+        <p class="fine" style="margin-top:12px">เหตุผล: <i>Y</i>* = <i>sA</i><sup>2</sup>/<i>δ</i> เมื่อ <i>A</i> เพิ่มขึ้น 1.2 เท่า <i>Y</i>* เพิ่มขึ้น 1.2<sup>2</sup> = 1.44 เท่า คือเพิ่ม 44% ตัวเลขนี้เทียบสภาวะคงตัวสองจุด ไม่ได้บอกว่าต้องรอกี่ช่วง</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="compare">
+  <h2>เพิ่ม A ขึ้น 20% เทียบกับเพิ่ม s ขึ้น 20%</h2>
+  <p class="fine" id="cmpIntro" style="margin-top:16px"></p>
+  <div class="tablewrap" style="margin-top:14px">
+    <table>
+      <thead><tr><th>ค่า</th><th class="r">ก่อน</th><th class="r">A +20%</th><th class="r">เปลี่ยน</th><th class="r">s +20%</th><th class="r">เปลี่ยน</th></tr></thead>
+      <tbody id="cmpRows"></tbody>
+    </table>
+  </div>
+  <div class="cmpbars" id="cmpBars"></div>
+  <p class="sumbox" id="cmpSum"></p>
+  <div class="prose" style="margin-top:20px">
+    <h3>ต่างกันอย่างไร และเพราะอะไร</h3>
+    <ul>
+      <li><b>A เพิ่ม 20% ให้ผลมากกว่า</b> เพราะ <i>Y</i>* = <i>sA</i><sup>2</sup>/<i>δ</i> เมื่อ <i>A</i> เป็น 1.2 เท่า <i>Y</i>* เป็น 1.2<sup>2</sup> = 1.44 เท่า (เพิ่ม 44%) แต่เมื่อ <i>s</i> เป็น 1.2 เท่า <i>Y</i>* เป็น 1.2 เท่า (เพิ่ม 20%) เท่านั้น</li>
+      <li><b>A มีผลสองทาง ส่วน s มีทางเดียว</b> A ทำให้ทุนหนึ่งหน่วยผลิตได้มากขึ้นทันที (1.2 เท่า) และยังทำให้สะสมทุนได้มากขึ้น (<i>K</i>* เป็น 1.44 เท่า) ซึ่งผลิตเพิ่มอีก (√1.44 = 1.2 เท่า) รวมเป็น 1.2 × 1.2 = 1.44 เท่า ส่วน s ไม่ได้ทำให้ทุนผลิตได้มากขึ้น ได้ผลทางเดียวคือสะสมทุนมากขึ้น (<i>K</i>* ก็เพิ่ม 44% เหมือนกัน) แต่เพราะ √<i>K</i> ผลผลิตจึงเพิ่มแค่ √1.44 = 1.2 เท่า</li>
+      <li><b>s ต้องแลกกับการบริโภค</b> s สูงขึ้นแปลว่าสัดส่วนที่เหลือไปบริโภค (1 − <i>s</i>) น้อยลง <i>C</i>* ∝ <i>s</i>(1 − <i>s</i>) จึงเพิ่มน้อยกว่า <i>Y</i>* และสูงสุดที่ <i>s</i> = 0.5 ถ้า s เกิน 0.5 การออมเพิ่มจะทำให้ <i>C</i>* ลดลง ส่วน A เพิ่มได้โดยไม่ต้องลดการบริโภค</li>
+    </ul>
+    <p class="fine"><i>K</i>* และ <i>Y</i>* เปลี่ยนตามกฎนี้เสมอไม่ว่า s, δ, A จะเป็นเท่าไร (เพิ่ม A 20%: ทั้งคู่ +44%, เพิ่ม s 20%: <i>K</i>* +44% และ <i>Y</i>* +20%) ส่วน <i>C</i>* ของกรณี s ขึ้นกับค่า s ที่ใช้ ตารางด้านบนคำนวณใหม่ทุกครั้งที่ปรับแถบ</p>
+  </div>
+</section>
+
+<section id="growth">
+  <h2>อะไรทำให้ผลผลิตโตต่อเนื่องในระยะยาว</h2>
+  <div class="prose" style="margin-top:18px">
+    <p class="answer"><b>คำตอบ: เทคโนโลยี (A) ที่เพิ่มขึ้นอย่างต่อเนื่อง</b> การออมมากขึ้นหรือทุนมากขึ้นอย่างเดียวทำให้ผลผลิตโตได้แค่ชั่วคราว</p>
+    <h3>เพราะอะไร</h3>
+    <ul>
+      <li><b>ผลตอบแทนต่อทุนลดลง</b> เพราะ <i>Y</i> = <i>A</i>√<i>K</i> ทุนที่เพิ่มทีละหน่วยให้ผลผลิตเพิ่มน้อยลงเรื่อย ๆ เส้นการลงทุน <i>sY</i> จึงโค้งแบนลง แต่เส้นค่าเสื่อม <i>δK</i> เป็นเส้นตรงที่สูงขึ้นตามทุน สองเส้นต้องตัดกันที่ <i>K</i>* ทุนหยุดเพิ่ม และผลผลิตหยุดที่ <i>Y</i>*</li>
+      <li><b>เพิ่ม s หรือลด δ ยกได้แค่ระดับ</b> ทำให้ <i>K</i>* และ <i>Y</i>* สูงขึ้น แต่พอถึงจุดใหม่ก็หยุดเหมือนเดิม ผลผลิตโตเฉพาะช่วงเปลี่ยนผ่าน ไม่ได้โตต่อไปเรื่อย ๆ</li>
+      <li><b>A ที่โตต่อเนื่องยกเส้นผลผลิตขึ้นทั้งเส้น</b> จุดสภาวะคงตัวจึงขยับสูงขึ้นไปเรื่อย ๆ ทุนและผลผลิตตามไปได้ไม่หยุด ในแบบจำลองนี้ <i>Y</i>* ∝ <i>A</i><sup>2</sup> ถ้า A โตช่วงละ g ในระยะยาวผลผลิตจะโตช่วงละประมาณ 2g</li>
+    </ul>
+    <p class="fine">ในแบบจำลอง Solow มาตรฐาน ความก้าวหน้าทางเทคโนโลยีถูกกำหนดจากภายนอก แบบจำลองไม่ได้อธิบายว่ามันเกิดจากอะไร ถ้าแรงงานที่มีประสิทธิภาพ <i>eL</i> เพิ่มขึ้น ผลผลิตรวมก็โตต่อเนื่องได้ แต่ผลผลิตต่อคนโตต่อเนื่องได้ด้วยเทคโนโลยีเท่านั้น</p>
+  </div>
+
+  <div class="panel chartpanel" style="margin-top:22px">
+    <h3>เส้นทางของผลผลิตเมื่อเวลาผ่านไป</h3>
+    <p class="fine">เริ่มจากสภาวะคงตัวเดิมตามค่า s, δ, A ในแถบปรับค่า (ดัชนีผลผลิต = 100) แล้วดูว่าแต่ละกรณีไปต่ออย่างไร</p>
+    <ul class="legend" id="gLegend"></ul>
+    <div id="gchart"></div>
+    <p class="fine" id="gCap"></p>
+    <div class="ctl" style="max-width:380px">
+      <div class="ctl-h"><label for="g">อัตราโตของ <span class="m">A</span> ในกรณีโตต่อเนื่อง</label><output id="gOut" for="g" class="num"></output></div>
+      <input type="range" id="g" min="0" max="0.3" step="0.01" value="0.1">
+      <div class="ctl-f"><span>0.00%</span><span>0.30%</span></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="who">
+    <div class="who-i"><span class="lab">ชื่อ-นามสกุล</span><strong id="stuName" class="who-v"></strong></div>
+    <div class="who-i"><span class="lab">รหัสนักศึกษา</span><strong id="stuId" class="who-v num"></strong></div>
+  </div>
+  <p>ใช้ Y = A·√K, I = s·Y, D = δ·K และ steady state ที่ sY = δK</p>
+</footer>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+/* ใส่ชื่อ-นามสกุลและรหัสนักศึกษาที่นี่ */
+var STUDENT = { name: 'ปนัดดา คำปนแก้ว', id: '671610223' };
+
+var AI_BOOST = 1.2;
+var $ = function(id){ return document.getElementById(id); };
+var nf3 = new Intl.NumberFormat('en-US',{minimumFractionDigits:3,maximumFractionDigits:3});
+var nf2 = new Intl.NumberFormat('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+var cmpNf = new Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:1});
+var tickNf = new Intl.NumberFormat('en-US',{maximumFractionDigits:2});
+function f3(v){ return nf3.format(v); }
+function signed3(v){ return (v<0?'−':'+')+nf3.format(Math.abs(v)); }
+function pct(v){ return (v<0?'−':'+')+nf2.format(Math.abs(v))+'%'; }
+function tickLabel(v){ return v>=10000 ? cmpNf.format(v) : tickNf.format(v); }
+
+/* identity header */
+(function(){
+  var n=$('stuName'), i=$('stuId');
+  if(STUDENT.name){ n.textContent=STUDENT.name; } else { n.textContent='ใส่ชื่อ-นามสกุล'; n.classList.add('todo'); }
+  if(STUDENT.id){ i.textContent=STUDENT.id; } else { i.textContent='ใส่รหัสนักศึกษา'; i.classList.add('todo'); }
+})();
+
+/* starting values: fixed at the lecture example */
+function initialParams(){
+  return { s:0.3, d:0.02, A:2.6, fromId:false };
+}
+var INIT = initialParams();
+
+function steady(s,d,A){
+  var u=s*A/d, K=u*u, Y=A*u;
+  return { u:u, K:K, Y:Y, C:(1-s)*Y, I:s*Y, A:A };
+}
+
+var S = { ai:false, guide:null, t:null, run:null };
+var cur = null, geo = null;
+
+function readParams(){ return { s:parseFloat($('s').value), d:parseFloat($('d').value), A:parseFloat($('A').value) }; }
+
+function niceStep(range,target){
+  var raw=range/target, mag=Math.pow(10,Math.floor(Math.log10(raw))), n=raw/mag;
+  var m = n<1.5?1 : n<3?2 : n<7?5 : 10;
+  return m*mag;
+}
+
+/* ---------- chart ---------- */
+function drawChart(){
+  if(!cur) return;
+  var host=$('chart'), W=Math.floor(host.clientWidth);
+  if(W<200) return;
+  var H=Math.round(Math.min(480,Math.max(300,W*0.58)));
+  var m={l:58,r:16,t:14,b:46}, pw=W-m.l-m.r, ph=H-m.t-m.b;
+  var p=cur.p, b=cur.base, e=cur.eff;
+
+  var Kst=Math.max(b.K,e.K);
+  var kStep=niceStep(Kst*1.6,6), Kmax=Math.ceil(Kst*1.6/kStep-1e-9)*kStep;
+  var yRaw=Math.max(Math.max(b.A,e.A)*Math.sqrt(Kmax), p.d*Kmax);
+  var yStep=niceStep(yRaw,5), Ymax=Math.ceil(yRaw/yStep-1e-9)*yStep;
+  geo={ ml:m.l, pw:pw, Kmax:Kmax };
+
+  function X(k){ return m.l+k/Kmax*pw; }
+  function Y(v){ return m.t+ph-v/Ymax*ph; }
+  var N=140;
+  var fy=function(k){ return e.A*Math.sqrt(k); };
+  var fi=function(k){ return p.s*fy(k); };
+  var fd=function(k){ return p.d*k; };
+  var gy=function(k){ return b.A*Math.sqrt(k); };
+  var gi=function(k){ return p.s*gy(k); };
+
+  function path(f,k1){
+    var d='';
+    for(var i=0;i<=N;i++){ var k=k1*i/N; d+=(i?'L':'M')+X(k).toFixed(1)+' '+Y(f(k)).toFixed(1); }
+    return d;
+  }
+  function poly(f1,f2,k0,k1){
+    var d='',i,k;
+    for(i=0;i<=N;i++){ k=k0+(k1-k0)*i/N; d+=(i?'L':'M')+X(k).toFixed(1)+' '+Y(f1(k)).toFixed(1); }
+    for(i=N;i>=0;i--){ k=k0+(k1-k0)*i/N; d+='L'+X(k).toFixed(1)+' '+Y(f2(k)).toFixed(1); }
+    return d+'Z';
+  }
+
+  var label='กราฟแสดงเส้นผลผลิต Y เส้นการลงทุน sY และเส้นค่าเสื่อม δK ตัดกันที่ทุน K* = '+f3(e.K)+' ผลผลิต Y* = '+f3(e.Y);
+  var g='<svg viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'" role="img" aria-label="'+label+'">';
+
+  var i,v,k;
+  for(i=0; i*yStep<=Ymax+1e-9; i++){
+    v=i*yStep;
+    if(i>0) g+='<path class="g-grid" d="M'+m.l+' '+Y(v).toFixed(1)+'H'+(W-m.r)+'"/>';
+    g+='<text class="g-tick" x="'+(m.l-8)+'" y="'+(Y(v)+4).toFixed(1)+'" text-anchor="end">'+tickLabel(v)+'</text>';
+  }
+  for(i=0; i*kStep<=Kmax+1e-9; i++){
+    k=i*kStep;
+    if(i>0) g+='<path class="g-grid" d="M'+X(k).toFixed(1)+' '+m.t+'V'+(m.t+ph)+'"/>';
+    g+='<text class="g-tick" x="'+X(k).toFixed(1)+'" y="'+(m.t+ph+17)+'" text-anchor="middle">'+tickLabel(k)+'</text>';
+  }
+
+  g+='<path class="a-up" d="'+poly(fi,fd,0,e.K)+'"/>';
+  g+='<path class="a-dn" d="'+poly(fi,fd,e.K,Kmax)+'"/>';
+
+  if(S.ai){
+    g+='<path class="c-gy" d="'+path(gy,Kmax)+'"/>';
+    g+='<path class="c-gi" d="'+path(gi,Kmax)+'"/>';
+  }
+  g+='<path class="c-d" d="'+path(fd,Kmax)+'"/>';
+  g+='<path class="c-i" d="'+path(fi,Kmax)+'"/>';
+  g+='<path class="c-y" d="'+path(fy,Kmax)+'"/>';
+
+  g+='<path class="g-axis" d="M'+m.l+' '+m.t+'V'+(m.t+ph)+'H'+(W-m.r)+'"/>';
+
+  /* steady state */
+  var px=X(e.K), py=Y(e.I);
+  g+='<path class="drop" d="M'+px.toFixed(1)+' '+(m.t+ph)+'V'+py.toFixed(1)+'"/>';
+  g+='<path class="drop" d="M'+m.l+' '+py.toFixed(1)+'H'+px.toFixed(1)+'"/>';
+  if(S.ai){
+    g+='<circle class="pt-g" cx="'+X(b.K).toFixed(1)+'" cy="'+Y(b.I).toFixed(1)+'" r="5"/>';
+    g+='<text class="lbl-s" x="'+X(b.K).toFixed(1)+'" y="'+(Y(b.I)+22).toFixed(1)+'" text-anchor="middle">ก่อน AI</text>';
+  }
+  g+='<circle class="pt" cx="'+px.toFixed(1)+'" cy="'+py.toFixed(1)+'" r="6.5"/>';
+  var anchor = px+70>W-m.r ? 'end' : 'middle';
+  var lx = anchor==='end' ? W-m.r : px;
+  g+='<text class="lbl" x="'+lx.toFixed(1)+'" y="'+(m.t+ph-9)+'" text-anchor="'+anchor+'"><tspan font-style="italic">K</tspan>* = '+f3(e.K)+'</text>';
+  g+='<text class="lbl" x="'+((m.l+px)/2).toFixed(1)+'" y="'+(py-8).toFixed(1)+'" text-anchor="middle"><tspan font-style="italic">I</tspan>* = <tspan font-style="italic">D</tspan>* = '+f3(e.I)+'</text>';
+
+  /* guide */
+  if(S.guide!=null){
+    var gk=Math.max(0,Math.min(Kmax,S.guide)), gx=X(gk).toFixed(1);
+    g+='<path class="guide" d="M'+gx+' '+m.t+'V'+(m.t+ph)+'"/>';
+    g+='<circle class="gd-d" cx="'+gx+'" cy="'+Y(fd(gk)).toFixed(1)+'" r="4.5"/>';
+    g+='<circle class="gd-i" cx="'+gx+'" cy="'+Y(fi(gk)).toFixed(1)+'" r="4.5"/>';
+    g+='<circle class="gd-y" cx="'+gx+'" cy="'+Y(fy(gk)).toFixed(1)+'" r="4.5"/>';
+  }
+
+  g+='<text class="g-title" x="'+(m.l+pw/2).toFixed(1)+'" y="'+(H-6)+'" text-anchor="middle">ทุน K</text>';
+  g+='<text class="g-title" transform="translate(13 '+(m.t+ph/2).toFixed(1)+') rotate(-90)" text-anchor="middle">Y · sY · δK</text>';
+  g+='</svg>';
+
+  host.style.height=H+'px';
+  host.innerHTML=g;
+}
+
+function renderReadout(){
+  var el=$('readout');
+  if(S.guide==null){ el.textContent='แตะหรือเลื่อนเมาส์บนกราฟเพื่ออ่านค่าที่ระดับทุนแต่ละจุด'; return; }
+  var k=S.guide, A=cur.eff.A, y=A*Math.sqrt(k), inv=cur.p.s*y, dep=cur.p.d*k, dk=inv-dep;
+  var tag = Math.abs(dk)<5e-4*Math.max(1,y) ? ' (นิ่ง)' : dk>0 ? ' (ทุนเพิ่ม)' : ' (ทุนลด)';
+  el.innerHTML=(S.t!=null?'<b>ช่วงที่ '+S.t+'</b> · ':'')+'K = '+f3(k)+' · Y = '+f3(y)+' · sY = '+f3(inv)+' · δK = '+f3(dep)+' · ΔK = '+signed3(dk)+tag;
+}
+
+function draw(){ drawChart(); renderReadout(); }
+
+/* ---------- results ---------- */
+function renderResults(){
+  var b=cur.base, e=cur.eff, p=cur.p;
+  $('vK').textContent=f3(e.K); $('vY').textContent=f3(e.Y); $('vC').textContent=f3(e.C);
+  var chips=[['cK',b.K,e.K],['cY',b.Y,e.Y],['cC',b.C,e.C]];
+  chips.forEach(function(c){
+    var el=$(c[0]);
+    if(S.ai){ el.hidden=false; el.textContent=pct((c[2]/c[1]-1)*100)+' จากก่อนมี AI'; } else { el.hidden=true; }
+  });
+  $('calc').innerHTML=
+    '<div><span>sA/δ</span> = '+f3(p.s)+' × '+f3(e.A)+' ÷ '+f3(p.d)+' = '+f3(e.u)+'</div>'+
+    '<div><span>K*</span> = (sA/δ)² = '+f3(e.u)+'² = '+f3(e.K)+'</div>'+
+    '<div><span>Y*</span> = A × √K* = '+f3(e.A)+' × '+f3(e.u)+' = '+f3(e.Y)+'</div>'+
+    '<div><span>C*</span> = (1 − s) × Y* = '+f3(1-p.s)+' × '+f3(e.Y)+' = '+f3(e.C)+'</div>';
+}
+
+function renderScenario(){
+  var b=cur.base, e=cur.eff;
+  var btn=$('aiBtn');
+  btn.setAttribute('aria-pressed', S.ai?'true':'false');
+  btn.textContent = S.ai ? 'ยกเลิกสถานการณ์ AI' : 'จำลอง: ไทยนำ AI มาใช้ (A เพิ่ม 20%)';
+  btn.classList.toggle('alt', S.ai);
+  $('ghostKey').hidden=!S.ai;
+  $('aiLink').hidden=!S.ai;
+  $('aiIdle').hidden=S.ai;
+  $('aiDone').hidden=!S.ai;
+  $('aiIdleY').textContent=f3(b.Y);
+  if(!S.ai) return;
+  var dY=e.Y-b.Y, pY=(e.Y/b.Y-1)*100;
+  $('aiBig').innerHTML='<i>Y</i>* เปลี่ยนจาก '+f3(b.Y)+' เป็น '+f3(e.Y)+' เพิ่มขึ้น <span class="up">'+signed3(dY)+' ('+pct(pY)+')</span>';
+  $('barB').style.width=(b.Y/e.Y*100).toFixed(2)+'%'; $('barB').textContent=f3(b.Y);
+  $('barA').style.width='100%'; $('barA').textContent=f3(e.Y);
+  var rows=[['A',b.A,e.A],['K*',b.K,e.K],['Y*',b.Y,e.Y],['C*',b.C,e.C]], h='';
+  rows.forEach(function(r){
+    h+='<tr><td><i>'+r[0].replace('*','</i>*')+(r[0].indexOf('*')<0?'</i>':'')+'</td><td class="r">'+f3(r[1])+'</td><td class="r">'+f3(r[2])+'</td><td class="r">'+signed3(r[2]-r[1])+'</td><td class="r">'+pct((r[2]/r[1]-1)*100)+'</td></tr>';
+  });
+  $('aiRows').innerHTML=h;
+}
+
+/* ---------- A +20% vs s +20% ---------- */
+var nf1 = new Intl.NumberFormat('en-US',{minimumFractionDigits:1,maximumFractionDigits:1});
+function pc(x,y){ return (y/x-1)*100; }
+function chg(v){ return v>=0 ? 'เพิ่มขึ้น '+nf2.format(v)+'%' : 'ลดลง '+nf2.format(-v)+'%'; }
+function renderCompare(){
+  var p=cur.p, b=cur.base;
+  var a=steady(p.s,p.d,p.A*1.2), x=steady(p.s*1.2,p.d,p.A);
+  $('cmpIntro').innerHTML='ใช้ค่าจากแถบปรับค่าด้านบน (ตอนนี้ s = '+f3(p.s)+', δ = '+f3(p.d)+', A = '+f3(p.A)+') เพิ่ม A ขึ้น 20% เป็น '+f3(p.A*1.2)+' เทียบกับเพิ่ม s ขึ้น 20% เป็น '+f3(p.s*1.2)+' โดยค่าอื่นเท่าเดิม';
+  var rows=[['<i>K</i>*',b.K,a.K,x.K],['<i>Y</i>*',b.Y,a.Y,x.Y],['<i>C</i>*',b.C,a.C,x.C]];
+  var h='', bars='', vals=[];
+  rows.forEach(function(r){ vals.push(Math.abs(pc(r[1],r[2])),Math.abs(pc(r[1],r[3]))); });
+  var mx=Math.max.apply(null,vals)||1;
+  rows.forEach(function(r){
+    var pa=pc(r[1],r[2]), ps=pc(r[1],r[3]);
+    h+='<tr><td>'+r[0]+'</td><td class="r">'+f3(r[1])+'</td><td class="r">'+f3(r[2])+'</td><td class="r">'+pct(pa)+'</td><td class="r">'+f3(r[3])+'</td><td class="r">'+pct(ps)+'</td></tr>';
+    bars+='<div class="cb"><div class="cb-h">'+r[0]+' เปลี่ยนไปกี่เปอร์เซ็นต์</div>'+
+      '<div class="bar"><span class="bar-l">เพิ่ม A 20%</span><div class="bar-t"><div class="bar-f bA" style="width:'+(Math.abs(pa)/mx*100).toFixed(2)+'%">'+pct(pa)+'</div></div></div>'+
+      '<div class="bar"><span class="bar-l">เพิ่ม s 20%</span><div class="bar-t"><div class="bar-f bS" style="width:'+(Math.abs(ps)/mx*100).toFixed(2)+'%">'+pct(ps)+'</div></div></div></div>';
+  });
+  $('cmpRows').innerHTML=h;
+  $('cmpBars').innerHTML=bars;
+  $('cmpSum').innerHTML=
+    '<b>เพิ่ม A 20%:</b> K* '+chg(pc(b.K,a.K))+', Y* '+chg(pc(b.Y,a.Y))+', C* '+chg(pc(b.C,a.C))+'<br>'+
+    '<b>เพิ่ม s 20%:</b> K* '+chg(pc(b.K,x.K))+', Y* '+chg(pc(b.Y,x.Y))+', C* '+chg(pc(b.C,x.C));
+}
+
+/* ---------- long-run growth paths ---------- */
+var gHost=$('gchart');
+function growthSeries(T,gr){
+  var p=cur.p, b=cur.base, Y0=b.Y;
+  function run(sMul,aMul,grow){
+    var K=b.K, out=[], s=p.s*sMul, A0=p.A*aMul;
+    for(var t=0;t<=T;t++){
+      var A=A0*(grow?Math.pow(1+gr,t):1);
+      out.push(A*Math.sqrt(K)/Y0*100);
+      K=K+s*A*Math.sqrt(K)-p.d*K;
+    }
+    return out;
+  }
+  return { base:run(1,1,false), s:run(1.2,1,false), a:run(1,1.2,false), grow:run(1,1,true) };
+}
+function drawGrowth(){
+  if(!cur) return;
+  var W=Math.floor(gHost.clientWidth);
+  var gp=parseFloat($('g').value);
+  $('gOut').textContent=nf2.format(gp)+'% ต่อช่วง';
+  if(W<200) return;
+  var p=cur.p;
+  var T=Math.max(150,Math.min(1200,Math.round(10/p.d/50)*50));
+  var ser=growthSeries(T,gp/100);
+  var H=Math.round(Math.min(420,Math.max(280,W*0.5)));
+  var m={l:52,r:18,t:14,b:46}, pw=W-m.l-m.r, ph=H-m.t-m.b;
+  var maxV=Math.max.apply(null,[].concat(ser.base,ser.s,ser.a,ser.grow));
+  var yStep=niceStep(maxV*1.05,5), Ymax=Math.ceil(maxV*1.05/yStep-1e-9)*yStep;
+  var xStep=niceStep(T,6);
+  function X(t){ return m.l+t/T*pw; }
+  function Y(v){ return m.t+ph-v/Ymax*ph; }
+  function path(a){ var d=''; for(var t=0;t<=T;t++){ d+=(t?'L':'M')+X(t).toFixed(1)+' '+Y(a[t]).toFixed(1); } return d; }
+  function last(a){ return a[a.length-1]; }
+  var label='กราฟดัชนีผลผลิตตามเวลา ที่ช่วง '+T+' กรณีไม่เปลี่ยน '+nf1.format(last(ser.base))+' เพิ่ม s 20% '+nf1.format(last(ser.s))+' เพิ่ม A 20% ครั้งเดียว '+nf1.format(last(ser.a))+' A โตต่อเนื่อง '+nf1.format(last(ser.grow));
+  var g='<svg viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'" role="img" aria-label="'+label+'">';
+  var i,v;
+  for(i=0;i*yStep<=Ymax+1e-9;i++){
+    v=i*yStep;
+    if(i>0) g+='<path class="g-grid" d="M'+m.l+' '+Y(v).toFixed(1)+'H'+(W-m.r)+'"/>';
+    g+='<text class="g-tick" x="'+(m.l-8)+'" y="'+(Y(v)+4).toFixed(1)+'" text-anchor="end">'+tickLabel(v)+'</text>';
+  }
+  for(i=0;i*xStep<=T+1e-9;i++){
+    v=i*xStep;
+    if(i>0) g+='<path class="g-grid" d="M'+X(v).toFixed(1)+' '+m.t+'V'+(m.t+ph)+'"/>';
+    g+='<text class="g-tick" x="'+X(v).toFixed(1)+'" y="'+(m.t+ph+17)+'" text-anchor="middle">'+tickLabel(v)+'</text>';
+  }
+  g+='<path class="l-base" d="'+path(ser.base)+'"/>';
+  g+='<path class="l-s" d="'+path(ser.s)+'"/>';
+  g+='<path class="l-a" d="'+path(ser.a)+'"/>';
+  g+='<path class="l-g" d="'+path(ser.grow)+'"/>';
+  g+='<path class="g-axis" d="M'+m.l+' '+m.t+'V'+(m.t+ph)+'H'+(W-m.r)+'"/>';
+  [['base',ser.base],['s',ser.s],['a',ser.a],['g',ser.grow]].forEach(function(r){
+    g+='<circle class="e-'+r[0]+'" cx="'+X(T).toFixed(1)+'" cy="'+Y(last(r[1])).toFixed(1)+'" r="4"/>';
+  });
+  g+='<text class="g-title" x="'+(m.l+pw/2).toFixed(1)+'" y="'+(H-6)+'" text-anchor="middle">ช่วงเวลา t</text>';
+  g+='<text class="g-title" transform="translate(13 '+(m.t+ph/2).toFixed(1)+') rotate(-90)" text-anchor="middle">ดัชนีผลผลิต Y</text>';
+  g+='</svg>';
+  gHost.style.height=H+'px';
+  gHost.innerHTML=g;
+  $('gLegend').innerHTML=
+    '<li><i class="sw sw-base"></i>ไม่เปลี่ยนอะไร → '+nf1.format(last(ser.base))+'</li>'+
+    '<li><i class="sw sw-s"></i>เพิ่ม s 20% → '+nf1.format(last(ser.s))+'</li>'+
+    '<li><i class="sw sw-a"></i>เพิ่ม A 20% ครั้งเดียว → '+nf1.format(last(ser.a))+'</li>'+
+    '<li><i class="sw sw-g"></i>A โตต่อเนื่อง '+nf2.format(gp)+'% ต่อช่วง → '+nf1.format(last(ser.grow))+'</li>';
+  $('gCap').textContent='ตัวเลขท้ายรายการคือดัชนีผลผลิตที่ช่วง t = '+T+' (ก่อนเริ่ม = 100)';
+}
+
+function update(){
+  var p=readParams();
+  var base=steady(p.s,p.d,p.A);
+  var eff=S.ai ? steady(p.s,p.d,p.A*AI_BOOST) : base;
+  cur={ p:p, base:base, eff:eff };
+  $('sOut').textContent=f3(p.s); $('dOut').textContent=f3(p.d); $('aOut').textContent=f3(p.A);
+  $('aNote').textContent = S.ai ? 'ใช้คำนวณ A = '+f3(eff.A)+' (เพิ่ม 20% จาก AI)' : '';
+  renderResults(); renderScenario(); renderCompare(); draw(); drawGrowth();
+}
+
+/* ---------- capital adjustment animation ---------- */
+function clearRun(){
+  if(S.run && S.run.raf) cancelAnimationFrame(S.run.raf);
+  S.run=null; S.t=null; S.guide=null;
+  $('playBtn').textContent='เล่นการปรับตัวของทุน';
+}
+function play(){
+  if(S.run && S.run.raf){ clearRun(); draw(); return; }
+  clearRun();
+  var p=cur.p, e=cur.eff, b=cur.base;
+  var K=S.ai ? b.K : 0.1*e.K, t=0;
+  var perFrame=Math.max(1,Math.ceil(14/p.d/160));
+  var reduce=window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function stepOnce(){ K=K+p.s*e.A*Math.sqrt(K)-p.d*K; t++; }
+  function done(){ return Math.abs(K-e.K)/e.K<0.001 || t>=20000; }
+  S.run={raf:0};
+  if(reduce){
+    while(!done()) stepOnce();
+    S.guide=K; S.t=t; $('playBtn').textContent='เล่นอีกครั้ง'; draw(); return;
+  }
+  S.guide=K; S.t=0; draw();
+  $('playBtn').textContent='หยุด';
+  function frame(){
+    for(var i=0;i<perFrame && !done();i++) stepOnce();
+    S.guide=K; S.t=t; draw();
+    if(done()){ S.run.raf=0; $('playBtn').textContent='เล่นอีกครั้ง'; return; }
+    S.run.raf=requestAnimationFrame(frame);
+  }
+  S.run.raf=requestAnimationFrame(frame);
+}
+
+/* ---------- wiring ---------- */
+['s','d','A'].forEach(function(id){
+  $(id).addEventListener('input',function(){ clearRun(); update(); });
+});
+$('resetBtn').addEventListener('click',function(){
+  clearRun(); S.ai=false; setInputs(); update();
+});
+$('aiBtn').addEventListener('click',function(){
+  clearRun(); S.ai=!S.ai; update();
+});
+$('playBtn').addEventListener('click',play);
+
+var host=$('chart');
+function kFromEvent(ev){
+  if(!geo) return null;
+  var r=host.getBoundingClientRect();
+  var k=(ev.clientX-r.left-geo.ml)/geo.pw*geo.Kmax;
+  return Math.max(0,Math.min(geo.Kmax,k));
+}
+function hover(ev){
+  if(S.run && S.run.raf) return;
+  S.run=null; S.t=null; $('playBtn').textContent='เล่นการปรับตัวของทุน';
+  S.guide=kFromEvent(ev); draw();
+}
+host.addEventListener('pointermove',hover);
+host.addEventListener('pointerdown',hover);
+host.addEventListener('pointerleave',function(ev){
+  if(S.run || ev.pointerType!=='mouse') return;
+  S.guide=null; draw();
+});
+
+function setInputs(){
+  $('s').value=INIT.s; $('d').value=INIT.d; $('A').value=INIT.A;
+  $('initNote').textContent = INIT.fromId
+    ? 'ค่าตั้งต้นคำนวณจากรหัสนักศึกษา: s = 0.20 + '+INIT.last+' × 0.02 = '+f3(INIT.s)+', δ = 0.02 + '+INIT.prev+' × 0.002 = '+f3(INIT.d)+', A = 2.600'
+    : 'ค่าตั้งต้น: s = 0.300, δ = 0.020, A = 2.600';
+}
+
+var lastW=0;
+if(window.ResizeObserver){
+  new ResizeObserver(function(){
+    var w=Math.floor(host.clientWidth);
+    if(w!==lastW){ lastW=w; drawChart(); }
+  }).observe(host);
+}
+
+$('g').addEventListener('input',drawGrowth);
+if(window.ResizeObserver){
+  var lastGW=0;
+  new ResizeObserver(function(){
+    var w=Math.floor(gHost.clientWidth);
+    if(w!==lastGW){ lastGW=w; drawGrowth(); }
+  }).observe(gHost);
+}
+
+setInputs();
+update();
+})();
+</script>
